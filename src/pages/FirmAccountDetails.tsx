@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useControl } from '@/contexts/ControlContext';
+import { EditFirmTransactionDialog } from '@/components/EditFirmTransactionDialog';
 
 interface FirmAccount {
   id: string;
@@ -38,6 +39,8 @@ export default function FirmAccountDetails() {
   const [account, setAccount] = useState<FirmAccount | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -81,6 +84,15 @@ export default function FirmAccountDetails() {
     }
   };
 
+  const handleEditTransaction = (transaction: Transaction) => {
+    if (!settings.allowEdit) {
+      toast.error('Edit permission denied');
+      return;
+    }
+    setSelectedTransaction(transaction);
+    setEditDialogOpen(true);
+  };
+
   const handleDeleteTransaction = async (transactionId: string) => {
     if (!settings.allowDelete) {
       toast.error('Delete permission denied');
@@ -103,6 +115,11 @@ export default function FirmAccountDetails() {
       console.error('Error deleting transaction:', error);
       toast.error('Failed to delete transaction');
     }
+  };
+
+  const handleTransactionUpdated = () => {
+    fetchTransactions();
+    fetchAccountDetails();
   };
 
   const getTransactionTypeLabel = (type: string) => {
@@ -224,7 +241,7 @@ export default function FirmAccountDetails() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toast.info('Edit functionality coming soon')}
+                              onClick={() => handleEditTransaction(transaction)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -248,6 +265,13 @@ export default function FirmAccountDetails() {
           )}
         </CardContent>
       </Card>
+
+      <EditFirmTransactionDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        transaction={selectedTransaction}
+        onTransactionUpdated={handleTransactionUpdated}
+      />
     </div>
   );
 }
