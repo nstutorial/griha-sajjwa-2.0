@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowLeftRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { RecordPartnerPaymentDialog } from '@/components/RecordPartnerPaymentDialog';
 import { ReceiveMoneyDialog } from '@/components/ReceiveMoneyDialog';
+import { EditPartnerTransactionDialog } from '@/components/EditPartnerTransactionDialog';
+import { TransferBetweenPartnersDialog } from '@/components/TransferBetweenPartnersDialog';
 import { PartnerStatement } from '@/components/PartnerStatement';
 
 interface Partner {
@@ -25,6 +27,7 @@ interface Transaction {
   payment_mode: string;
   notes: string | null;
   mahajan_name: string;
+  source?: 'partner' | 'firm';
 }
 
 export default function PartnerDetails() {
@@ -35,6 +38,9 @@ export default function PartnerDetails() {
   const [loading, setLoading] = useState(true);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiveMoneyDialog, setShowReceiveMoneyDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -148,17 +154,21 @@ export default function PartnerDetails() {
         payment_date: t.payment_date,
         payment_mode: t.payment_mode,
         notes: t.notes,
-        mahajan_name: t.mahajan_id ? ((t.mahajans as any)?.name || 'Unknown') : 'Firm Account'
+        mahajan_name: t.mahajan_id ? ((t.mahajans as any)?.name || 'Unknown') : 'Firm Account',
+        source: 'partner' as const
       }));
 
       // Format firm transactions
       const formattedFirmTxns = (firmTxns || []).map(t => ({
         id: t.id,
-        amount: t.amount,
+        amount: t.transaction_type === 'partner_withdrawal' || t.transaction_type === 'expense' 
+          ? -Math.abs(t.amount) 
+          : Math.abs(t.amount),
         payment_date: t.transaction_date,
-        payment_mode: 'bank', // firm transactions are typically bank transactions
+        payment_mode: 'bank',
         notes: `${t.transaction_type} - ${t.description || 'No description'} (${(t.firm_accounts as any)?.account_name || 'Firm Account'})`,
-        mahajan_name: 'Firm Account'
+        mahajan_name: 'Firm Account',
+        source: 'firm' as const
       }));
 
       // Merge and sort all transactions by date
@@ -175,6 +185,29 @@ export default function PartnerDetails() {
   const handlePaymentAdded = () => {
     fetchPartnerDetails();
     fetchTransactions();
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    if (!confirm('Are you sure you want to delete this transaction?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('partner_transactions')
+        .delete()
+        .eq('id', transactionId);
+
+      if (error) throw error;
+      toast.success('Transaction deleted successfully');
+      handlePaymentAdded();
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error);
+      toast.error('Failed to delete transaction');
+    }
   };
 
   if (loading) {
@@ -200,11 +233,15 @@ export default function PartnerDetails() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{partner.name}</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowReceiveMoneyDialog(true)}>
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
+                <ArrowLeftRight className="h-4 w-4 mr-2" />
+                Transfer
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowReceiveMoneyDialog(true)}>
                 Receive Money
               </Button>
-              <Button onClick={() => setShowPaymentDialog(true)}>
+              <Button size="sm" onClick={() => setShowPaymentDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Record Payment
               </Button>
@@ -238,7 +275,11 @@ export default function PartnerDetails() {
             <CardTitle>Transaction History</CardTitle>
           </CardHeader>
           <CardContent>
-            <PartnerStatement transactions={transactions} />
+            <PartnerStatement 
+              transactions={transactions}
+              onEdit={handleEditTransaction}
+              onDelete={handleDeleteTransaction}
+            />
           </CardContent>
         </Card>
       </div>
@@ -256,6 +297,21 @@ export default function PartnerDetails() {
         partnerId={partner.id}
         partnerName={partner.name}
         onPaymentAdded={handlePaymentAdded}
+      />
+
+      <EditPartnerTransactionDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        transaction={selectedTransaction}
+        onTransactionUpdated={handlePaymentAdded}
+      />
+
+      <TransferBetweenPartnersDialog
+        open={showTransferDialog}
+        onOpenChange={setShowTransferDialog}
+        fromPartnerId={partner.id}
+        fromPartnerName={partner.name}
+        onTransferComplete={handlePaymentAdded}
       />
     </div>
   );
