@@ -43,6 +43,50 @@ export default function PartnerDetails() {
     }
   }, [id]);
 
+  // Realtime subscriptions for transaction updates
+  useEffect(() => {
+    if (!id) return;
+
+    const partnerTransactionsChannel = supabase
+      .channel('partner-transactions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'partner_transactions',
+          filter: `partner_id=eq.${id}`
+        },
+        () => {
+          fetchTransactions();
+          fetchPartnerDetails();
+        }
+      )
+      .subscribe();
+
+    const firmTransactionsChannel = supabase
+      .channel('firm-transactions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'firm_transactions',
+          filter: `partner_id=eq.${id}`
+        },
+        () => {
+          fetchTransactions();
+          fetchPartnerDetails();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(partnerTransactionsChannel);
+      supabase.removeChannel(firmTransactionsChannel);
+    };
+  }, [id]);
+
   const fetchPartnerDetails = async () => {
     try {
       const { data, error } = await supabase
@@ -63,7 +107,8 @@ export default function PartnerDetails() {
 
   const fetchTransactions = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch partner_transactions
+      const { data: partnerTxns, error: partnerError } = await supabase
         .from('partner_transactions')
         .select(`
           id,
@@ -77,9 +122,27 @@ export default function PartnerDetails() {
         .eq('partner_id', id)
         .order('payment_date', { ascending: false });
 
-      if (error) throw error;
+      if (partnerError) throw partnerError;
+
+      // Fetch firm_transactions for this partner
+      const { data: firmTxns, error: firmError } = await supabase
+        .from('firm_transactions')
+        .select(`
+          id,
+          amount,
+          transaction_date,
+          description,
+          transaction_type,
+          firm_account_id,
+          firm_accounts (account_name)
+        `)
+        .eq('partner_id', id)
+        .order('transaction_date', { ascending: false });
+
+      if (firmError) throw firmError;
       
-      const formattedTransactions = (data || []).map(t => ({
+      // Format partner transactions
+      const formattedPartnerTxns = (partnerTxns || []).map(t => ({
         id: t.id,
         amount: t.amount,
         payment_date: t.payment_date,
@@ -88,7 +151,21 @@ export default function PartnerDetails() {
         mahajan_name: t.mahajan_id ? ((t.mahajans as any)?.name || 'Unknown') : 'Firm Account'
       }));
 
-      setTransactions(formattedTransactions);
+      // Format firm transactions
+      const formattedFirmTxns = (firmTxns || []).map(t => ({
+        id: t.id,
+        amount: t.amount,
+        payment_date: t.transaction_date,
+        payment_mode: 'bank', // firm transactions are typically bank transactions
+        notes: `${t.transaction_type} - ${t.description || 'No description'} (${(t.firm_accounts as any)?.account_name || 'Firm Account'})`,
+        mahajan_name: 'Firm Account'
+      }));
+
+      // Merge and sort all transactions by date
+      const allTransactions = [...formattedPartnerTxns, ...formattedFirmTxns]
+        .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
+
+      setTransactions(allTransactions);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
       toast.error('Failed to load transactions');
