@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useControl } from '@/contexts/ControlContext';
 import { EditFirmTransactionDialog } from '@/components/EditFirmTransactionDialog';
+import { SendMoneyDialog } from '@/components/SendMoneyDialog';
 
 interface FirmAccount {
   id: string;
@@ -40,6 +41,7 @@ export default function FirmAccountDetails() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [sendMoneyDialogOpen, setSendMoneyDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   useEffect(() => {
@@ -143,11 +145,17 @@ export default function FirmAccountDetails() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/firm-accounts')}>
-          <ArrowLeft className="h-5 w-5" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/firm-accounts')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-3xl font-bold">Account Statement - {account.account_name}</h1>
+        </div>
+        <Button onClick={() => setSendMoneyDialogOpen(true)}>
+          <Send className="h-4 w-4 mr-2" />
+          Send Money
         </Button>
-        <h1 className="text-3xl font-bold">Account Statement - {account.account_name}</h1>
       </div>
 
       <Card className="mb-6">
@@ -271,6 +279,14 @@ export default function FirmAccountDetails() {
         onOpenChange={setEditDialogOpen}
         transaction={selectedTransaction}
         onTransactionUpdated={handleTransactionUpdated}
+      />
+
+      <SendMoneyDialog
+        open={sendMoneyDialogOpen}
+        onOpenChange={setSendMoneyDialogOpen}
+        firmAccountId={account.id}
+        firmAccountName={account.account_name}
+        onMoneySent={handleTransactionUpdated}
       />
     </div>
   );
