@@ -168,7 +168,7 @@ const fetchTransactions = async () => {
         adjustedAmount = t.amount;
       } else if (t.transaction_type === 'partner_withdrawal') {
         // Money given from firm to partner
-        adjustedAmount = Math.abs(t.amount);
+        adjustedAmount = -Math.abs(t.amount);
       } else if (t.transaction_type === 'expense') {
         // Expense from firm, doesn't affect partner
         adjustedAmount = -Math.abs(t.amount);
@@ -263,9 +263,9 @@ const fetchTransactions = async () => {
                 <ArrowLeftRight className="h-4 w-4 mr-2" />
                 Transfer
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowReceiveMoneyDialog(true)}>
+              {/* <Button variant="outline" size="sm" onClick={() => setShowReceiveMoneyDialog(true)}>
                 Receive Money
-              </Button>
+              </Button> */}
               <Button size="sm" onClick={() => setShowPaymentDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Record Payment
