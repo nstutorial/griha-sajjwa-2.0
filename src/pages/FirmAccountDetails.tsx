@@ -51,6 +51,32 @@ export default function FirmAccountDetails() {
     }
   }, [id]);
 
+  // Realtime subscription for firm_transactions
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel('firm-transactions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'firm_transactions',
+          filter: `firm_account_id=eq.${id}`
+        },
+        () => {
+          fetchTransactions();
+          fetchAccountDetails();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
   const fetchAccountDetails = async () => {
     try {
       const { data, error } = await supabase
@@ -60,7 +86,25 @@ export default function FirmAccountDetails() {
         .single();
 
       if (error) throw error;
-      setAccount(data);
+
+      // Calculate current balance from transaction history
+      const { data: txns, error: txnError } = await supabase
+        .from('firm_transactions')
+        .select('amount, transaction_type')
+        .eq('firm_account_id', id);
+
+      if (txnError) throw txnError;
+
+      const calculatedBalance = (txns || []).reduce((balance, txn) => {
+        if (txn.transaction_type === 'partner_deposit' || txn.transaction_type === 'income') {
+          return balance + txn.amount;
+        } else if (txn.transaction_type === 'partner_withdrawal' || txn.transaction_type === 'expense') {
+          return balance - txn.amount;
+        }
+        return balance;
+      }, data.opening_balance);
+
+      setAccount({ ...data, current_balance: calculatedBalance });
     } catch (error: any) {
       console.error('Error fetching account:', error);
       toast.error('Failed to load account details');
