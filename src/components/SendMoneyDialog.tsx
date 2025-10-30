@@ -41,6 +41,7 @@ export function SendMoneyDialog({
   const [formData, setFormData] = useState({
     recipient_type: 'partner' as 'partner' | 'mahajan',
     recipient_id: '',
+    transaction_type: 'partner_deposit',
     amount: '',
     transaction_date: new Date().toISOString().split('T')[0],
     description: ''
@@ -82,13 +83,13 @@ export function SendMoneyDialog({
       const amount = parseFloat(formData.amount);
 
       if (formData.recipient_type === 'partner') {
-        // Create firm transaction for partner deposit
+        // Create firm transaction for partner
         const { error: firmError } = await supabase
           .from('firm_transactions')
           .insert({
             firm_account_id: firmAccountId,
             partner_id: formData.recipient_id,
-            transaction_type: 'partner_deposit',
+            transaction_type: formData.transaction_type,
             amount: amount,
             transaction_date: formData.transaction_date,
             description: formData.description || `Money sent to partner from ${firmAccountName}`
@@ -96,13 +97,13 @@ export function SendMoneyDialog({
 
         if (firmError) throw firmError;
       } else {
-        // For mahajan: just record firm transaction as expense
+        // For mahajan: record firm transaction
         const { error: firmError } = await supabase
           .from('firm_transactions')
           .insert({
             firm_account_id: firmAccountId,
             partner_id: null,
-            transaction_type: 'expense',
+            transaction_type: formData.transaction_type,
             amount: amount,
             transaction_date: formData.transaction_date,
             description: formData.description || `Payment to mahajan: ${mahajans.find(m => m.id === formData.recipient_id)?.name} from ${firmAccountName}`
@@ -115,6 +116,7 @@ export function SendMoneyDialog({
       setFormData({
         recipient_type: 'partner',
         recipient_id: '',
+        transaction_type: 'partner_deposit',
         amount: '',
         transaction_date: new Date().toISOString().split('T')[0],
         description: ''
@@ -176,6 +178,25 @@ export function SendMoneyDialog({
                     {recipient.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="transaction_type">Transaction Type</Label>
+            <Select
+              value={formData.transaction_type}
+              onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="partner_deposit">Partner Deposit</SelectItem>
+                <SelectItem value="partner_withdrawal">Partner Withdrawal</SelectItem>
+                <SelectItem value="expense">Expense</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
+                <SelectItem value="adjustment">Adjustment</SelectItem>
               </SelectContent>
             </Select>
           </div>
