@@ -161,11 +161,21 @@ export function BillCustomerStatement({ customer }: BillCustomerStatementProps) 
 
     // Add transactions
     transactions.forEach(trans => {
+      // Format the description to show payment details
+      let description = trans.transaction_type === 'payment' ? 'Payment Received' : 'Refund';
+      if (trans.notes) {
+        // If notes contain bill details, format them nicely
+        const noteLines = trans.notes.split('\n').filter(line => line.trim());
+        if (noteLines.length > 0) {
+          description += '\n' + noteLines.join('\n');
+        }
+      }
+
       allEntries.push({
         date: trans.payment_date,
         type: trans.transaction_type as 'payment' | 'refund',
         amount: trans.amount,
-        description: `${trans.transaction_type === 'payment' ? 'Payment' : 'Refund'} for Sale #${trans.sales?.sale_number || 'N/A'}${trans.notes ? ' - ' + trans.notes : ''}`,
+        description,
         id: trans.sale_id,
         transaction_id: trans.id
       });
@@ -436,7 +446,7 @@ export function BillCustomerStatement({ customer }: BillCustomerStatementProps) 
                   {statement.map((entry, index) => (
                     <TableRow key={`${entry.id}-${index}`}>
                       <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{entry.description}</TableCell>
+                      <TableCell className="whitespace-pre-line">{entry.description}</TableCell>
                       <TableCell className="text-right">
                         {entry.debit ? `₹${entry.debit.toFixed(2)}` : '-'}
                       </TableCell>

@@ -155,30 +155,37 @@ export function RecordSalePaymentDialog({
         return { ...sale, outstanding };
       }).filter(s => s.outstanding > 0);
 
-      // Apply payment to sales (oldest first)
+      // Apply payment to sales (oldest first) and build details
       let remainingPayment = paymentAmount;
-      const transactionsToInsert = [];
+      const billDetails: string[] = [];
+      let mainSaleId = '';
 
       for (const sale of salesWithOutstanding) {
         if (remainingPayment <= 0) break;
 
         const amountToApply = Math.min(remainingPayment, sale.outstanding);
-        transactionsToInsert.push({
-          sale_id: sale.id,
-          amount: amountToApply,
-          payment_date: data.payment_date,
-          payment_mode: data.payment_mode,
-          transaction_type: data.transaction_type,
-          notes: data.notes || null,
-        });
-
+        billDetails.push(`₹${amountToApply.toFixed(2)} for payment of ${sale.sale_number}`);
+        
+        if (!mainSaleId) mainSaleId = sale.id;
         remainingPayment -= amountToApply;
       }
 
-      // Insert all transactions
+      // Create a single consolidated transaction with details
+      const consolidatedNotes = [
+        ...billDetails,
+        data.notes ? `Note: ${data.notes}` : ''
+      ].filter(Boolean).join('\n');
+
       const { error: insertError } = await supabase
         .from('sale_transactions')
-        .insert(transactionsToInsert);
+        .insert({
+          sale_id: mainSaleId,
+          amount: paymentAmount,
+          payment_date: data.payment_date,
+          payment_mode: data.payment_mode,
+          transaction_type: data.transaction_type,
+          notes: consolidatedNotes,
+        });
 
       if (insertError) throw insertError;
 
