@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,6 +35,7 @@ const paymentSchema = z.object({
   payment_date: z.string().min(1, 'Payment date is required'),
   payment_mode: z.enum(['cash', 'bank']),
   transaction_type: z.enum(['payment', 'refund']).default('payment'),
+  firm_account_id: z.string().min(1, 'Please select a firm account'),
   notes: z.string().optional(),
 });
 
@@ -62,6 +63,28 @@ export function RecordSalePaymentDialog({
 }: RecordSalePaymentDialogProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [firmAccounts, setFirmAccounts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user && open) {
+      fetchFirmAccounts();
+    }
+  }, [user, open]);
+
+  const fetchFirmAccounts = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('firm_accounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('account_name');
+
+    if (!error && data) {
+      setFirmAccounts(data);
+    }
+  };
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -70,6 +93,7 @@ export function RecordSalePaymentDialog({
       payment_date: new Date().toISOString().split('T')[0],
       payment_mode: 'cash',
       transaction_type: 'payment',
+      firm_account_id: '',
       notes: '',
     },
   });
@@ -165,6 +189,19 @@ export function RecordSalePaymentDialog({
         .update({ outstanding_amount: Math.max(0, newOutstanding) })
         .eq('id', customer.id);
 
+      // Create firm transaction for income
+      if (data.transaction_type === 'payment') {
+        await supabase
+          .from('firm_transactions')
+          .insert({
+            firm_account_id: data.firm_account_id,
+            transaction_type: 'income',
+            amount: paymentAmount,
+            transaction_date: data.payment_date,
+            description: `Payment received from ${customer.name}`,
+          });
+      }
+
       toast.success('Payment recorded successfully');
       form.reset();
       onOpenChange(false);
@@ -242,6 +279,31 @@ export function RecordSalePaymentDialog({
                     <SelectContent>
                       <SelectItem value="cash">Cash</SelectItem>
                       <SelectItem value="bank">Bank</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="firm_account_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Credit to Account *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select firm account" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {firmAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.account_name} ({account.account_type})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
