@@ -98,7 +98,7 @@ export default function FirmAccountDetails() {
       const calculatedBalance = (txns || []).reduce((balance, txn) => {
         if (txn.transaction_type === 'partner_deposit' || txn.transaction_type === 'income') {
           return balance + txn.amount;
-        } else if (txn.transaction_type === 'partner_withdrawal' || txn.transaction_type === 'expense') {
+        } else if (txn.transaction_type === 'partner_withdrawal' || txn.transaction_type === 'expense' || txn.transaction_type === 'refund') {
           return balance - txn.amount;
         }
         return balance;
@@ -172,6 +172,7 @@ export default function FirmAccountDetails() {
     const labels: Record<string, string> = {
       partner_deposit: 'Partner Deposit',
       partner_withdrawal: 'Partner Withdrawal',
+      refund: 'Refund',
       expense: 'Expense',
       income: 'Income',
       adjustment: 'Adjustment'
@@ -276,12 +277,14 @@ export default function FirmAccountDetails() {
                     </TableCell>
                     <TableCell className={`text-right font-medium ${
                       transaction.transaction_type === 'partner_withdrawal' || 
-                      transaction.transaction_type === 'expense' 
+                      transaction.transaction_type === 'expense' ||
+                       transaction.transaction_type === 'refund' 
                         ? 'text-destructive' 
                         : 'text-green-600'
                     }`}>
                       {transaction.transaction_type === 'partner_withdrawal' || 
-                       transaction.transaction_type === 'expense' 
+                       transaction.transaction_type === 'expense'  ||
+                        transaction.transaction_type === 'refund'  
                         ? '-' 
                         : '+'}
                       ₹{transaction.amount.toFixed(2)}

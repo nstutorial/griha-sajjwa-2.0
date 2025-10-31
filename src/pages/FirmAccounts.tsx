@@ -49,7 +49,7 @@ export default function FirmAccounts() {
           const calculatedBalance = (txns || []).reduce((balance, txn) => {
             if (txn.transaction_type === 'partner_deposit' || txn.transaction_type === 'income') {
               return balance + txn.amount;
-            } else if (txn.transaction_type === 'partner_withdrawal' || txn.transaction_type === 'expense') {
+            } else if (txn.transaction_type === 'partner_withdrawal' || txn.transaction_type === 'expense' ||  txn.transaction_type === 'refund') {
               return balance - txn.amount;
             }
             return balance;
@@ -99,7 +99,7 @@ export default function FirmAccounts() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-3xl font-bold">Firm Accounts</h1>
