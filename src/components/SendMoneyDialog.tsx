@@ -92,7 +92,17 @@ export function SendMoneyDialog({
         .order('name');
 
       if (error) throw error;
-      setCustomTypes(data || []);
+      
+      // Filter out custom types that conflict with standard transaction types
+      const standardTypes = ['partner_deposit', 'partner_withdrawal', 'expense', 'income', 
+                            'refund', 'adjustment', 'gst_tax_payment', 'income_tax_payment', 
+                            'paid_to_ca', 'paid_to_supplier'];
+      const filtered = (data || []).filter(ct => {
+        const slug = ct.name.toLowerCase().replace(/\s+/g, '_');
+        return !standardTypes.includes(slug);
+      });
+      
+      setCustomTypes(filtered);
     } catch (error: any) {
       console.error('Error fetching custom types:', error);
     }
@@ -127,9 +137,10 @@ export function SendMoneyDialog({
     try {
       const amount = parseFloat(formData.amount);
       
-      // Map custom types to 'expense' for database compliance
+      // Map custom types and special types to 'expense' for database compliance
       let transactionType = formData.transaction_type;
-      if (transactionType.startsWith('custom_')) {
+      if (transactionType.startsWith('custom_') || 
+          ['gst_tax_payment', 'income_tax_payment', 'paid_to_ca', 'paid_to_supplier'].includes(transactionType)) {
         transactionType = 'expense';
       }
 
