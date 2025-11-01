@@ -221,6 +221,8 @@ export function SendMoneyDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="partner_deposit">Partner Deposit</SelectItem>
+                <SelectItem value="partner_withdrawal">Partner Withdrawal</SelectItem>
                 <SelectItem value="expense">Expense</SelectItem>
                 <SelectItem value="income">Income</SelectItem>
                 <SelectItem value="refund">Refund</SelectItem>
