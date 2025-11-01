@@ -72,7 +72,21 @@ export function EditFirmTransactionDialog({
         .order('name');
 
       if (error) throw error;
-      setCustomTypes(data || []);
+      
+      // Standard transaction type values to avoid duplicates
+      const standardTypes = [
+        'partner_deposit', 'partner_withdrawal', 'refund', 'expense', 
+        'income', 'adjustment', 'gst_tax_payment', 'income_tax_payment', 
+        'paid_to_ca', 'paid_to_supplier'
+      ];
+      
+      // Filter out custom types that would conflict with standard types
+      const filteredTypes = (data || []).filter(type => {
+        const slug = type.name.toLowerCase().replace(/\s+/g, '_');
+        return !standardTypes.includes(slug);
+      });
+      
+      setCustomTypes(filteredTypes);
     } catch (error: any) {
       console.error('Error fetching custom types:', error);
     }
