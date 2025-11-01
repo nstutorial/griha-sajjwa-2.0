@@ -47,7 +47,7 @@ export function SendMoneyDialog({
   const [formData, setFormData] = useState({
     recipient_type: 'partner' as 'partner' | 'mahajan',
     recipient_id: '',
-    transaction_type: 'partner_deposit',
+    transaction_type: 'expense',
     amount: '',
     transaction_date: new Date().toISOString().split('T')[0],
     description: ''
@@ -145,7 +145,7 @@ export function SendMoneyDialog({
       setFormData({
         recipient_type: 'partner',
         recipient_id: '',
-        transaction_type: 'partner_deposit',
+        transaction_type: 'expense',
         amount: '',
         transaction_date: new Date().toISOString().split('T')[0],
         description: ''
