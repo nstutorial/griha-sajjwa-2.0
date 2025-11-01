@@ -60,6 +60,29 @@ export function SendMoneyDialog({
     }
   }, [open, user]);
 
+  const getTransactionTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      partner_deposit: 'Partner Deposit',
+      partner_withdrawal: 'Partner Withdrawal',
+      expense: 'Expense',
+      income: 'Income',
+      refund: 'Refund',
+      adjustment: 'Adjustment',
+      gst_tax_payment: 'GST Tax Payment',
+      income_tax_payment: 'Income Tax Payment',
+      paid_to_ca: 'Paid To CA',
+      paid_to_supplier: 'Paid To Supplier'
+    };
+    
+    if (labels[type]) return labels[type];
+    
+    // Handle custom types
+    const customType = customTypes.find(ct => `custom_${ct.id}` === type);
+    if (customType) return customType.name;
+    
+    return type;
+  };
+
   const fetchCustomTypes = async () => {
     try {
       const { data, error } = await supabase
@@ -110,6 +133,11 @@ export function SendMoneyDialog({
         transactionType = 'expense';
       }
 
+      const transactionTypeLabel = getTransactionTypeLabel(formData.transaction_type);
+      const recipientName = formData.recipient_type === 'partner' 
+        ? partners.find(p => p.id === formData.recipient_id)?.name
+        : mahajans.find(m => m.id === formData.recipient_id)?.name;
+
       if (formData.recipient_type === 'partner') {
         // Create firm transaction for partner
         const { error: firmError } = await supabase
@@ -120,7 +148,7 @@ export function SendMoneyDialog({
             transaction_type: transactionType,
             amount: amount,
             transaction_date: formData.transaction_date,
-            description: formData.description || `Money sent to partner from ${firmAccountName}`
+            description: formData.description || `${transactionTypeLabel} - Money sent to ${recipientName} from ${firmAccountName}`
           });
 
         if (firmError) throw firmError;
@@ -135,7 +163,7 @@ export function SendMoneyDialog({
             transaction_type: transactionType,
             amount: amount,
             transaction_date: formData.transaction_date,
-            description: formData.description || `Payment to mahajan: ${mahajans.find(m => m.id === formData.recipient_id)?.name} from ${firmAccountName}`
+            description: formData.description || `${transactionTypeLabel} - Payment to ${recipientName} from ${firmAccountName}`
           });
 
         if (firmError) throw firmError;
@@ -227,6 +255,10 @@ export function SendMoneyDialog({
                 <SelectItem value="income">Income</SelectItem>
                 <SelectItem value="refund">Refund</SelectItem>
                 <SelectItem value="adjustment">Adjustment</SelectItem>
+                <SelectItem value="gst_tax_payment">GST Tax Payment</SelectItem>
+                <SelectItem value="income_tax_payment">Income Tax Payment</SelectItem>
+                <SelectItem value="paid_to_ca">Paid To CA</SelectItem>
+                <SelectItem value="paid_to_supplier">Paid To Supplier</SelectItem>
                 {customTypes.map((type) => (
                   <SelectItem key={type.id} value={`custom_${type.id}`}>
                     {type.name}
