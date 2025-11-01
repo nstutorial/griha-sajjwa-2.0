@@ -27,6 +27,11 @@ interface Mahajan {
   name: string;
 }
 
+interface CustomTransactionType {
+  id: string;
+  name: string;
+}
+
 export function SendMoneyDialog({
   open,
   onOpenChange,
@@ -38,6 +43,7 @@ export function SendMoneyDialog({
   const [loading, setLoading] = useState(false);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [mahajans, setMahajans] = useState<Mahajan[]>([]);
+  const [customTypes, setCustomTypes] = useState<CustomTransactionType[]>([]);
   const [formData, setFormData] = useState({
     recipient_type: 'partner' as 'partner' | 'mahajan',
     recipient_id: '',
@@ -50,8 +56,24 @@ export function SendMoneyDialog({
   useEffect(() => {
     if (open && user) {
       fetchRecipients();
+      fetchCustomTypes();
     }
   }, [open, user]);
+
+  const fetchCustomTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('custom_transaction_types')
+        .select('id, name')
+        .eq('user_id', user?.id)
+        .order('name');
+
+      if (error) throw error;
+      setCustomTypes(data || []);
+    } catch (error: any) {
+      console.error('Error fetching custom types:', error);
+    }
+  };
 
   const fetchRecipients = async () => {
     try {
@@ -81,6 +103,12 @@ export function SendMoneyDialog({
     setLoading(true);
     try {
       const amount = parseFloat(formData.amount);
+      
+      // Map custom types to 'expense' for database compliance
+      let transactionType = formData.transaction_type;
+      if (transactionType.startsWith('custom_')) {
+        transactionType = 'expense';
+      }
 
       if (formData.recipient_type === 'partner') {
         // Create firm transaction for partner
@@ -89,7 +117,7 @@ export function SendMoneyDialog({
           .insert({
             firm_account_id: firmAccountId,
             partner_id: formData.recipient_id,
-            transaction_type: formData.transaction_type,
+            transaction_type: transactionType,
             amount: amount,
             transaction_date: formData.transaction_date,
             description: formData.description || `Money sent to partner from ${firmAccountName}`
@@ -97,13 +125,14 @@ export function SendMoneyDialog({
 
         if (firmError) throw firmError;
       } else {
-        // For mahajan: record firm transaction
+        // For mahajan: record firm transaction with mahajan_id
         const { error: firmError } = await supabase
           .from('firm_transactions')
           .insert({
             firm_account_id: firmAccountId,
+            mahajan_id: formData.recipient_id,
             partner_id: null,
-            transaction_type: formData.transaction_type,
+            transaction_type: transactionType,
             amount: amount,
             transaction_date: formData.transaction_date,
             description: formData.description || `Payment to mahajan: ${mahajans.find(m => m.id === formData.recipient_id)?.name} from ${firmAccountName}`
@@ -192,12 +221,15 @@ export function SendMoneyDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="partner_deposit">Partner Deposit</SelectItem>
-                <SelectItem value="partner_withdrawal">Partner Withdrawal</SelectItem>
-                 <SelectItem value="refund">Refund</SelectItem>
                 <SelectItem value="expense">Expense</SelectItem>
                 <SelectItem value="income">Income</SelectItem>
+                <SelectItem value="refund">Refund</SelectItem>
                 <SelectItem value="adjustment">Adjustment</SelectItem>
+                {customTypes.map((type) => (
+                  <SelectItem key={type.id} value={`custom_${type.id}`}>
+                    {type.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
