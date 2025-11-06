@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, DollarSign, Calendar, Plus, Eye, Edit, Trash2, FileText, Download } from 'lucide-react';
+import { Users, DollarSign, Calendar, Plus, Eye, Edit, Trash2, FileText, Download, Lock } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -33,6 +33,8 @@ interface Loan {
   id: string;
   loan_number: string;
   principal_amount: number;
+  processing_fee?: number;
+  total_outstanding?: number;
   interest_rate: number;
   interest_type: 'daily' | 'monthly' | 'none';
   emi_amount?: number;
@@ -41,6 +43,7 @@ interface Loan {
   description?: string;
   is_active: boolean;
   customer_id: string;
+  locked?: boolean;
   customers: {
     name: string;
     phone?: string;
@@ -106,6 +109,8 @@ const LoansList: React.FC<LoansListProps> = ({ onUpdate, status = 'active' }) =>
           id,
           loan_number,
           principal_amount,
+          processing_fee,
+          total_outstanding,
           interest_rate,
           interest_type,
           emi_amount,
@@ -528,7 +533,52 @@ Generated on: ${new Date().toLocaleDateString()}
     }
   };
 
+  const handleLock = async (loan: Loan) => {
+    if (loan.locked) {
+      toast({
+        variant: "destructive",
+        title: "Already locked",
+        description: "To unlock this loan, go to Settings page.",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('loans')
+        .update({ locked: true })
+        .eq('id', loan.id);
+
+      if (error) throw error;
+
+      setLoans(loans.map(l => 
+        l.id === loan.id ? { ...l, locked: true } : l
+      ));
+
+      toast({
+        title: "Loan locked",
+        description: "Loan can no longer be edited or deleted. Go to Settings to unlock.",
+      });
+    } catch (error) {
+      console.error('Error locking loan:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to lock loan",
+      });
+    }
+  };
+
   const handleQuickDelete = async (loan: Loan) => {
+    if (loan.locked) {
+      toast({
+        variant: "destructive",
+        title: "Cannot delete loan",
+        description: "This loan is locked. Unlock it first to delete.",
+      });
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete loan #${loan.loan_number} for ${loan.customers.name}? This action cannot be undone.`)) return;
 
     try {
@@ -665,11 +715,23 @@ Generated on: ${new Date().toLocaleDateString()}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Principal</p>
                   <p className="font-semibold">₹{loan.principal_amount.toFixed(2)}</p>
                 </div>
+                {loan.processing_fee && loan.processing_fee > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Processing Fee</p>
+                    <p className="font-semibold text-blue-600">₹{loan.processing_fee.toFixed(2)}</p>
+                  </div>
+                )}
+                {loan.total_outstanding && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Outstanding</p>
+                    <p className="font-semibold text-orange-600">₹{loan.total_outstanding.toFixed(2)}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Interest</p>
                   <p className="font-semibold text-orange-600">₹{interest.toFixed(2)}</p>
@@ -678,6 +740,9 @@ Generated on: ${new Date().toLocaleDateString()}
                   <p className="text-sm text-muted-foreground">Total Amount</p>
                   <p className="font-semibold text-primary">₹{totalAmount.toFixed(2)}</p>
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">EMI Amount</p>
                   <p className="font-semibold text-purple-600">
@@ -727,13 +792,31 @@ Generated on: ${new Date().toLocaleDateString()}
                     </Button>
                   </div>
                 )}
+                <Button
+                  variant={loan.locked ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLock(loan)}
+                  title={loan.locked ? "Locked - Unlock from Settings" : "Lock loan"}
+                >
+                  <Lock className="h-4 w-4" />
+                </Button>
                 {controlSettings.allowEdit && !isClosed && (
-                  <Button variant="outline" size="sm" onClick={() => handleEditLoan(loan)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleEditLoan(loan)}
+                    disabled={loan.locked}
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
                 {controlSettings.allowDelete && !isClosed && (
-                  <Button variant="destructive" size="sm" onClick={() => handleQuickDelete(loan)}>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => handleQuickDelete(loan)}
+                    disabled={loan.locked}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
