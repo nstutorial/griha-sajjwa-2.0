@@ -178,7 +178,7 @@ const SearchTransactionById = ({ transactions, advanceTransactions = [], onUpdat
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          maxLength={8}
+          {/* maxLength={8} */}
         />
         <Button onClick={handleSearch}>Search</Button>
         <Button variant="outline" onClick={handleReset}>
