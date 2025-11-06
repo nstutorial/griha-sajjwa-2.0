@@ -314,10 +314,15 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
       
       description += partnerInfo;
       
-      // Add bill details
-      const billDetails = groupedTransactions.map(t => 
-        `₹${t.amount.toFixed(2)} for payment of ${t.bill.bill_number}`
-      ).join('\n');
+      // Add bill details with notes
+      const billDetails = groupedTransactions.map(t => {
+        let detail = `₹${t.amount.toFixed(2)} for payment of ${t.bill.bill_number}`;
+        // Add notes if present and not containing partner/reference info
+        if (t.notes && !t.notes.includes('Payment from partner:') && !t.notes.includes('REF#')) {
+          detail += ` - ${t.notes}`;
+        }
+        return detail;
+      }).join('\n');
       
       description += '\n' + billDetails;
 
