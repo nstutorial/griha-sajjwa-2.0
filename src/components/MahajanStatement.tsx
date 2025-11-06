@@ -300,7 +300,7 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
         }
       }
       
-      // Build description with all bill details
+      // Build description with all bill details and notes
       let description = `Payment Received`;
       
       // Extract partner info if present
@@ -314,12 +314,23 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
       
       description += partnerInfo;
       
-      // Add bill details with notes
+      // Add bill details with all notes from bill_transactions
       const billDetails = groupedTransactions.map(t => {
-        let detail = `₹${t.amount.toFixed(2)} for payment of ${t.bill.bill_number}`;
-        // Add notes if present and not containing partner/reference info
-        if (t.notes && !t.notes.includes('Payment from partner:') && !t.notes.includes('REF#')) {
-          detail += ` - ${t.notes}`;
+        let detail = `₹${t.amount.toFixed(2)} for ${t.bill.bill_number}`;
+        
+        // Extract and clean notes - remove system-generated info but keep user notes
+        if (t.notes) {
+          let cleanNotes = t.notes;
+          // Remove REF# pattern
+          cleanNotes = cleanNotes.replace(/REF#\d{8}/g, '').trim();
+          // Remove "Payment from partner:" pattern
+          cleanNotes = cleanNotes.replace(/Payment from partner:[^-]+-?/g, '').trim();
+          // Remove leading/trailing dashes and spaces
+          cleanNotes = cleanNotes.replace(/^[-\s]+|[-\s]+$/g, '').trim();
+          
+          if (cleanNotes) {
+            detail += ` - ${cleanNotes}`;
+          }
         }
         return detail;
       }).join('\n');
