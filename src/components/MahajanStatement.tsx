@@ -314,15 +314,13 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
       
       description += partnerInfo;
       
-      // Add bill details with all notes from bill_transactions
+      // Add bill details with all notes from bill_transactions including REF#
       const billDetails = groupedTransactions.map(t => {
         let detail = `₹${t.amount.toFixed(2)} for ${t.bill.bill_number}`;
         
-        // Extract and clean notes - remove system-generated info but keep user notes
+        // Extract and clean notes - remove only "Payment from partner:" but keep REF# and user notes
         if (t.notes) {
           let cleanNotes = t.notes;
-          // Remove REF# pattern
-          cleanNotes = cleanNotes.replace(/REF#\d{8}/g, '').trim();
           // Remove "Payment from partner:" pattern
           cleanNotes = cleanNotes.replace(/Payment from partner:[^-]+-?/g, '').trim();
           // Remove leading/trailing dashes and spaces
