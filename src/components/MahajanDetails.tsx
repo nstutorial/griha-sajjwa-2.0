@@ -64,6 +64,16 @@ interface BillTransaction {
   };
 }
 
+interface AdvancePaymentTransaction {
+  id: string;
+  mahajan_id: string;
+  amount: number;
+  payment_date: string;
+  payment_mode: string;
+  notes: string | null;
+  type: 'advance'; // To distinguish from bill transactions
+}
+
 interface MahajanDetailsProps {
   mahajan: Mahajan;
   onBack: () => void;
@@ -76,6 +86,7 @@ const MahajanDetails: React.FC<MahajanDetailsProps> = ({ mahajan, onBack, onUpda
   const { toast } = useToast();
   const [bills, setBills] = useState<Bill[]>([]);
   const [transactions, setTransactions] = useState<BillTransaction[]>([]);
+  const [advanceTransactions, setAdvanceTransactions] = useState<AdvancePaymentTransaction[]>([]);
   const [firmTransactions, setFirmTransactions] = useState<any[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [selectedBillId, setSelectedBillId] = useState('');
@@ -182,8 +193,18 @@ const MahajanDetails: React.FC<MahajanDetailsProps> = ({ mahajan, onBack, onUpda
 
       if (firmTransError) throw firmTransError;
 
+      // Fetch advance payment transactions
+      const { data: advanceTransData, error: advanceTransError } = await supabase
+        .from('advance_payment_transactions' as any)
+        .select('*')
+        .eq('mahajan_id', mahajan.id)
+        .order('payment_date', { ascending: false });
+
+      if (advanceTransError) console.error('Advance transactions error:', advanceTransError);
+
       // Set all states together to prevent flickering
       setTransactions(transData);
+      setAdvanceTransactions((advanceTransData || []) as unknown as AdvancePaymentTransaction[]);
       setFirmTransactions(firmTransData || []);
       setBills(billsData || []);
     } catch (error: any) {
@@ -689,7 +710,11 @@ const MahajanDetails: React.FC<MahajanDetailsProps> = ({ mahajan, onBack, onUpda
         </TabsContent>
 
         <TabsContent value="searchTransaction">
-          <SearchTransactionById transactions={transactions as any} />
+          <SearchTransactionById 
+            transactions={transactions as any} 
+            advanceTransactions={advanceTransactions as any}
+            onUpdate={fetchBillsAndTransactions}
+          />
         </TabsContent>
       </Tabs>
 
