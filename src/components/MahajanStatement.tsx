@@ -542,13 +542,13 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
     // ---------------- TABLE ROWS ----------------
     doc.setFont("helvetica", "normal");
 
-    // Utility: Clean number strings (remove ₹, commas, *, etc.)
-    const cleanNumber = (num) => {
-      return String(num).replace(/[^\d.-]/g, "");
-    };
+    // Utility: Clean numbers and text
+    const cleanNumber = (num) => String(num).replace(/[^\d.-]/g, "");
+    const cleanText = (text) => String(text || "").replace(/[^\w\s.,()\-/:]/g, "");
 
     statement.forEach((entry) => {
-      const descLines = doc.splitTextToSize(entry.description, colWidths[1] - 4);
+      const descText = cleanText(entry.description);
+      const descLines = doc.splitTextToSize(descText, colWidths[1] - 4);
       const rowHeight = Math.max(8, descLines.length * 5 + 4);
 
       if (y + rowHeight > pageHeight - 30) {
@@ -560,7 +560,7 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
 
       let colX = margin;
       const date = format(new Date(entry.date), "dd/MM/yyyy");
-      const reference = entry.reference.length > 8 ? entry.reference.slice(0, 6) + "..." : entry.reference;
+      const reference = cleanText(entry.reference.length > 8 ? entry.reference.slice(0, 6) + "..." : entry.reference);
       const debitText = entry.debit > 0 ? cleanNumber(entry.debit) : "-";
       const creditText = entry.credit > 0 ? cleanNumber(entry.credit) : "-";
       const balanceText = cleanNumber(entry.balance);
@@ -665,6 +665,7 @@ const MahajanStatement: React.FC<MahajanStatementProps> = ({ mahajan }) => {
     });
   }
 };
+
 
 
   return (
