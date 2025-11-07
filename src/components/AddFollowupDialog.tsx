@@ -119,7 +119,7 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
                 <SelectValue placeholder="Keep current status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Keep current status</SelectItem>
+                {/* <SelectItem value="">Keep current status</SelectItem> */}
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="admitted">Admitted</SelectItem>
                 <SelectItem value="not_admitted">Not Admitted</SelectItem>
