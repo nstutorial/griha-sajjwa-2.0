@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useControl } from "@/contexts/ControlContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,21 +35,40 @@ export default function AdmissionEnquiry() {
   const [editingEnquiry, setEditingEnquiry] = useState<any>(null);
   const [followupEnquiryId, setFollowupEnquiryId] = useState<string | null>(null);
   const [deleteEnquiryId, setDeleteEnquiryId] = useState<string | null>(null);
+  const { allowAdmissionDeletion } = useControl().settings;
 
   const fetchEnquiries = async () => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: enquiriesData, error: enquiriesError } = await supabase
         .from("admission_enquiry")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("enquiry_date", { ascending: false });
 
-      if (error) throw error;
-      setEnquiries(data || []);
-      setFilteredEnquiries(data || []);
+      if (enquiriesError) throw enquiriesError;
+
+      // Fetch last follow-up for each enquiry
+      const enquiriesWithFollowups = await Promise.all(
+        (enquiriesData || []).map(async (enquiry) => {
+          const { data: followups } = await supabase
+            .from("admission_followups")
+            .select("*")
+            .eq("enquiry_id", enquiry.id)
+            .order("followup_date", { ascending: false })
+            .limit(1);
+
+          return {
+            ...enquiry,
+            last_followup: followups?.[0] || null,
+          };
+        })
+      );
+
+      setEnquiries(enquiriesWithFollowups);
+      setFilteredEnquiries(enquiriesWithFollowups);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -83,6 +103,15 @@ export default function AdmissionEnquiry() {
     if (!deleteEnquiryId) return;
 
     try {
+      // First delete all followups
+      const { error: followupsError } = await supabase
+        .from("admission_followups")
+        .delete()
+        .eq("enquiry_id", deleteEnquiryId);
+
+      if (followupsError) throw followupsError;
+
+      // Then delete the enquiry
       const { error } = await supabase
         .from("admission_enquiry")
         .delete()
@@ -155,10 +184,10 @@ export default function AdmissionEnquiry() {
                 <TableHead>Child Name</TableHead>
                 <TableHead>Parents Name</TableHead>
                 <TableHead>Mobile</TableHead>
-                <TableHead>Age/DOB</TableHead>
-                <TableHead>Course</TableHead>
+                <TableHead>Enquiry Date</TableHead>
+                <TableHead>Last Follow-up</TableHead>
+                <TableHead>Remarks</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -170,17 +199,23 @@ export default function AdmissionEnquiry() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEnquiries.map((enquiry) => (
+                filteredEnquiries.map((enquiry: any) => (
                   <TableRow key={enquiry.id}>
                     <TableCell className="font-medium">{enquiry.child_name}</TableCell>
                     <TableCell>{enquiry.parents_name}</TableCell>
                     <TableCell>{enquiry.mobile_no}</TableCell>
                     <TableCell>
-                      {enquiry.age ? `${enquiry.age} yrs` : enquiry.date_of_birth ? format(new Date(enquiry.date_of_birth), "dd/MM/yyyy") : "-"}
+                      {enquiry.enquiry_date ? format(new Date(enquiry.enquiry_date), "dd/MM/yyyy") : "-"}
                     </TableCell>
-                    <TableCell>{enquiry.course_name || "-"}</TableCell>
+                    <TableCell>
+                      {enquiry.last_followup?.followup_date 
+                        ? format(new Date(enquiry.last_followup.followup_date), "dd/MM/yyyy")
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {enquiry.last_followup?.remark || "-"}
+                    </TableCell>
                     <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
-                    <TableCell>{format(new Date(enquiry.created_at), "dd/MM/yyyy")}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -197,13 +232,15 @@ export default function AdmissionEnquiry() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setDeleteEnquiryId(enquiry.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {allowAdmissionDeletion && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setDeleteEnquiryId(enquiry.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

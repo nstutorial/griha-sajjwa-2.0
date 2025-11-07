@@ -22,6 +22,7 @@ export type Database = {
           course_name: string | null
           created_at: string
           date_of_birth: string | null
+          enquiry_date: string
           gender: string | null
           id: string
           mobile_no: string
@@ -41,6 +42,7 @@ export type Database = {
           course_name?: string | null
           created_at?: string
           date_of_birth?: string | null
+          enquiry_date?: string
           gender?: string | null
           id?: string
           mobile_no: string
@@ -60,6 +62,7 @@ export type Database = {
           course_name?: string | null
           created_at?: string
           date_of_birth?: string | null
+          enquiry_date?: string
           gender?: string | null
           id?: string
           mobile_no?: string

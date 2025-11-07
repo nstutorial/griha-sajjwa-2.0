@@ -30,7 +30,8 @@ export function EditAdmissionEnquiryDialog({ enquiry, open, onOpenChange, onSucc
     religion: "",
     nationality: "",
     course_name: "",
-    status: "pending"
+    status: "pending",
+    enquiry_date: new Date().toISOString().split('T')[0]
   });
 
   useEffect(() => {
@@ -48,7 +49,8 @@ export function EditAdmissionEnquiryDialog({ enquiry, open, onOpenChange, onSucc
         religion: enquiry.religion || "",
         nationality: enquiry.nationality || "",
         course_name: enquiry.course_name || "",
-        status: enquiry.status || "pending"
+        status: enquiry.status || "pending",
+        enquiry_date: enquiry.enquiry_date || new Date().toISOString().split('T')[0]
       });
     }
   }, [enquiry]);
@@ -62,7 +64,8 @@ export function EditAdmissionEnquiryDialog({ enquiry, open, onOpenChange, onSucc
         .update({
           ...formData,
           age: formData.age ? parseInt(formData.age) : null,
-          date_of_birth: formData.date_of_birth || null
+          date_of_birth: formData.date_of_birth || null,
+          enquiry_date: formData.enquiry_date
         })
         .eq("id", enquiry.id);
 
@@ -84,7 +87,18 @@ export function EditAdmissionEnquiryDialog({ enquiry, open, onOpenChange, onSucc
         <DialogHeader>
           <DialogTitle>Edit Admission Enquiry</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="enquiry_date">Enquiry Date *</Label>
+            <Input
+              id="enquiry_date"
+              type="date"
+              value={formData.enquiry_date}
+              onChange={(e) => setFormData({ ...formData, enquiry_date: e.target.value })}
+              required
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="child_name">Child Name *</Label>

@@ -27,7 +27,8 @@ export function AddAdmissionEnquiryDialog({ onSuccess }: { onSuccess: () => void
     religion: "",
     nationality: "",
     course_name: "",
-    status: "pending"
+    status: "pending",
+    enquiry_date: new Date().toISOString().split('T')[0]
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +41,8 @@ export function AddAdmissionEnquiryDialog({ onSuccess }: { onSuccess: () => void
         user_id: user.id,
         ...formData,
         age: formData.age ? parseInt(formData.age) : null,
-        date_of_birth: formData.date_of_birth || null
+        date_of_birth: formData.date_of_birth || null,
+        enquiry_date: formData.enquiry_date
       }]);
 
       if (error) throw error;
@@ -60,7 +62,8 @@ export function AddAdmissionEnquiryDialog({ onSuccess }: { onSuccess: () => void
         religion: "",
         nationality: "",
         course_name: "",
-        status: "pending"
+        status: "pending",
+        enquiry_date: new Date().toISOString().split('T')[0]
       });
       onSuccess();
     } catch (error: any) {
@@ -82,7 +85,18 @@ export function AddAdmissionEnquiryDialog({ onSuccess }: { onSuccess: () => void
         <DialogHeader>
           <DialogTitle>Add Admission Enquiry</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="enquiry_date">Enquiry Date *</Label>
+            <Input
+              id="enquiry_date"
+              type="date"
+              value={formData.enquiry_date}
+              onChange={(e) => setFormData({ ...formData, enquiry_date: e.target.value })}
+              required
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="child_name">Child Name *</Label>

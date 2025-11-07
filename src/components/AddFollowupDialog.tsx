@@ -21,20 +21,33 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
     followup_date: new Date().toISOString().split('T')[0],
     followup_type: "phone",
     remark: "",
-    next_followup_date: ""
+    next_followup_date: "",
+    status: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from("admission_followups").insert([{
+      const { error: followupError } = await supabase.from("admission_followups").insert([{
         enquiry_id: enquiryId,
-        ...formData,
+        followup_date: formData.followup_date,
+        followup_type: formData.followup_type,
+        remark: formData.remark,
         next_followup_date: formData.next_followup_date || null
       }]);
 
-      if (error) throw error;
+      if (followupError) throw followupError;
+
+      // Update enquiry status if provided
+      if (formData.status) {
+        const { error: statusError } = await supabase
+          .from("admission_enquiry")
+          .update({ status: formData.status })
+          .eq("id", enquiryId);
+
+        if (statusError) throw statusError;
+      }
 
       toast.success("Followup added successfully");
       onOpenChange(false);
@@ -42,7 +55,8 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
         followup_date: new Date().toISOString().split('T')[0],
         followup_type: "phone",
         remark: "",
-        next_followup_date: ""
+        next_followup_date: "",
+        status: ""
       });
       onSuccess();
     } catch (error: any) {
@@ -97,6 +111,20 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
               value={formData.next_followup_date}
               onChange={(e) => setFormData({ ...formData, next_followup_date: e.target.value })}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="status">Update Status</Label>
+            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Keep current status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Keep current status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="admitted">Admitted</SelectItem>
+                <SelectItem value="not_admitted">Not Admitted</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
