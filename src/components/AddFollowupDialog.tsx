@@ -15,34 +15,27 @@ interface AddFollowupDialogProps {
   onSuccess: () => void;
 }
 
-export function AddFollowupDialog({
-  enquiryId,
-  open,
-  onOpenChange,
-  onSuccess,
-}: AddFollowupDialogProps) {
+export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: AddFollowupDialogProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    followup_date: new Date().toISOString().split("T")[0],
+    followup_date: new Date().toISOString().split('T')[0],
     followup_type: "phone",
     remark: "",
     next_followup_date: "",
-    status: "",
+    status: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error: followupError } = await supabase.from("admission_followups").insert([
-        {
-          enquiry_id: enquiryId,
-          followup_date: formData.followup_date,
-          followup_type: formData.followup_type,
-          remark: formData.remark,
-          next_followup_date: formData.next_followup_date || null,
-        },
-      ]);
+      const { error: followupError } = await supabase.from("admission_followups").insert([{
+        enquiry_id: enquiryId,
+        followup_date: formData.followup_date,
+        followup_type: formData.followup_type,
+        remark: formData.remark,
+        next_followup_date: formData.next_followup_date || null
+      }]);
 
       if (followupError) throw followupError;
 
@@ -59,11 +52,11 @@ export function AddFollowupDialog({
       toast.success("Followup added successfully");
       onOpenChange(false);
       setFormData({
-        followup_date: new Date().toISOString().split("T")[0],
+        followup_date: new Date().toISOString().split('T')[0],
         followup_type: "phone",
         remark: "",
         next_followup_date: "",
-        status: "",
+        status: ""
       });
       onSuccess();
     } catch (error: any) {
@@ -80,7 +73,6 @@ export function AddFollowupDialog({
           <DialogTitle>Add Followup</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Followup Date */}
           <div className="space-y-2">
             <Label htmlFor="followup_date">Followup Date *</Label>
             <Input
@@ -88,23 +80,14 @@ export function AddFollowupDialog({
               type="date"
               required
               value={formData.followup_date}
-              onChange={(e) =>
-                setFormData({ ...formData, followup_date: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, followup_date: e.target.value })}
             />
           </div>
-
-          {/* Followup Type */}
           <div className="space-y-2">
             <Label htmlFor="followup_type">Followup Type *</Label>
-            <Select
-              value={formData.followup_type}
-              onValueChange={(value) =>
-                setFormData({ ...formData, followup_type: value })
-              }
-            >
+            <Select value={formData.followup_type} onValueChange={(value) => setFormData({ ...formData, followup_type: value })}>
               <SelectTrigger>
-                <SelectValue placeholder="Select Type" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="phone">Phone</SelectItem>
@@ -112,63 +95,39 @@ export function AddFollowupDialog({
               </SelectContent>
             </Select>
           </div>
-
-          {/* Remark */}
           <div className="space-y-2">
             <Label htmlFor="remark">Remark</Label>
             <Textarea
               id="remark"
               value={formData.remark}
-              onChange={(e) =>
-                setFormData({ ...formData, remark: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
             />
           </div>
-
-          {/* Next Followup Date */}
           <div className="space-y-2">
             <Label htmlFor="next_followup_date">Next Followup Date</Label>
             <Input
               id="next_followup_date"
               type="date"
               value={formData.next_followup_date}
-              onChange={(e) =>
-                setFormData({ ...formData, next_followup_date: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, next_followup_date: e.target.value })}
             />
           </div>
-
-          {/* Update Status */}
           <div className="space-y-2">
             <Label htmlFor="status">Update Status</Label>
-            <Select
-              value={formData.status || "keep_current"}
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  status: value === "keep_current" ? "" : value,
-                })
-              }
-            >
+            <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
               <SelectTrigger>
                 <SelectValue placeholder="Keep current status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="keep_current">Keep current status</SelectItem>
+                <SelectItem value="">Keep current status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="admitted">Admitted</SelectItem>
                 <SelectItem value="not_admitted">Not Admitted</SelectItem>
               </SelectContent>
             </Select>
           </div>
-
-          {/* Buttons */}
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
