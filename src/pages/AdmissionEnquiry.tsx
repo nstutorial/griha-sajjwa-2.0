@@ -14,7 +14,9 @@ import { AddAdmissionEnquiryDialog } from "@/components/AddAdmissionEnquiryDialo
 import { EditAdmissionEnquiryDialog } from "@/components/EditAdmissionEnquiryDialog";
 import { AddFollowupDialog } from "@/components/AddFollowupDialog";
 import { toast } from "sonner";
-import { Pencil, Trash2, Phone, Search, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Phone, Search, AlertCircle, ChevronDown, ChevronRight, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import { PDFDownloader } from "@/lib/pdf-download";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -166,6 +168,95 @@ export default function AdmissionEnquiry() {
     return <Badge variant={variants[status] || "secondary"}>{labels[status] || status}</Badge>;
   };
 
+  const handleExportPDF = async (enquiry: any) => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    
+    // School Name
+    pdf.setFontSize(20);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("SKYVIEW PUBLIC SCHOOL", pageWidth / 2, 20, { align: "center" });
+    
+    // Title
+    pdf.setFontSize(16);
+    pdf.text("Admission Enquiry Form", pageWidth / 2, 35, { align: "center" });
+    
+    // Draw a line
+    pdf.setLineWidth(0.5);
+    pdf.line(20, 40, pageWidth - 20, 40);
+    
+    // Form content
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    
+    let yPos = 55;
+    const leftMargin = 25;
+    const lineHeight = 10;
+    
+    const addField = (label: string, value: string) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.text(`${label}:`, leftMargin, yPos);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(value || "-", leftMargin + 50, yPos);
+      yPos += lineHeight;
+    };
+    
+    addField("Enquiry Date", enquiry.enquiry_date ? format(new Date(enquiry.enquiry_date), "dd/MM/yyyy") : "-");
+    addField("Child Name", enquiry.child_name);
+    addField("Gender", enquiry.gender);
+    addField("Date of Birth", enquiry.date_of_birth ? format(new Date(enquiry.date_of_birth), "dd/MM/yyyy") : "-");
+    addField("Age", enquiry.age?.toString());
+    
+    yPos += 5;
+    addField("Parents Name", enquiry.parents_name);
+    addField("Mobile No", enquiry.mobile_no);
+    addField("Address", enquiry.address);
+    addField("Nearby Road", enquiry.nearby_road_name);
+    
+    yPos += 5;
+    addField("Religion", enquiry.religion);
+    addField("Nationality", enquiry.nationality);
+    addField("Course Name", enquiry.course_name);
+    addField("Referred By", enquiry.referred_by);
+    
+    yPos += 5;
+    addField("Status", enquiry.status.replace("_", " ").toUpperCase());
+    
+    // Last Follow-up section
+    if (enquiry.last_followup) {
+      yPos += 10;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.text("Last Follow-up", leftMargin, yPos);
+      yPos += lineHeight;
+      
+      pdf.setFontSize(11);
+      addField("Date", format(new Date(enquiry.last_followup.followup_date), "dd/MM/yyyy"));
+      addField("Type", enquiry.last_followup.followup_type);
+      if (enquiry.last_followup.remark) {
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Remark:", leftMargin, yPos);
+        pdf.setFont("helvetica", "normal");
+        const remarkLines = pdf.splitTextToSize(enquiry.last_followup.remark, pageWidth - leftMargin - 30);
+        pdf.text(remarkLines, leftMargin + 50, yPos);
+        yPos += remarkLines.length * lineHeight;
+      }
+      if (enquiry.last_followup.next_followup_date) {
+        addField("Next Follow-up", format(new Date(enquiry.last_followup.next_followup_date), "dd/MM/yyyy"));
+      }
+    }
+    
+    // Footer
+    const footerY = pdf.internal.pageSize.getHeight() - 20;
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "italic");
+    pdf.text(`Generated on ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageWidth / 2, footerY, { align: "center" });
+    
+    const pdfBlob = pdf.output("blob");
+    const filename = `Admission_Enquiry_${enquiry.child_name.replace(/\s+/g, "_")}_${format(new Date(), "yyyyMMdd")}.pdf`;
+    await PDFDownloader.downloadPDF(pdfBlob, filename);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-full">Loading...</div>;
   }
@@ -210,8 +301,7 @@ export default function AdmissionEnquiry() {
                 <TableHead>Parent Name & Address</TableHead>
                 <TableHead>Mobile</TableHead>
                 <TableHead>Enquiry Date</TableHead>
-                <TableHead>Last Follow-up</TableHead>
-                <TableHead>Remarks</TableHead>
+                <TableHead>Follow-ups</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -219,7 +309,7 @@ export default function AdmissionEnquiry() {
             <TableBody>
               {filteredEnquiries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No enquiries found
                   </TableCell>
                 </TableRow>
@@ -257,12 +347,26 @@ export default function AdmissionEnquiry() {
                             {enquiry.enquiry_date ? format(new Date(enquiry.enquiry_date), "dd/MM/yyyy") : "-"}
                           </TableCell>
                           <TableCell>
-                            {enquiry.last_followup?.followup_date 
-                              ? format(new Date(enquiry.last_followup.followup_date), "dd/MM/yyyy")
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {enquiry.last_followup?.remark || "-"}
+                            <div className="space-y-1">
+                              {enquiry.last_followup?.followup_date ? (
+                                <div className="text-sm">
+                                  <span className="text-muted-foreground">Last: </span>
+                                  <span className="text-foreground font-medium">
+                                    {format(new Date(enquiry.last_followup.followup_date), "dd/MM/yyyy")}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="text-sm text-muted-foreground">No follow-up yet</div>
+                              )}
+                              {enquiry.last_followup?.next_followup_date && (
+                                <div className="text-sm">
+                                  <span className="text-muted-foreground">Next: </span>
+                                  <span className="text-primary font-medium">
+                                    {format(new Date(enquiry.last_followup.next_followup_date), "dd/MM/yyyy")}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
                           <TableCell className="text-right">
@@ -270,7 +374,16 @@ export default function AdmissionEnquiry() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                onClick={() => handleExportPDF(enquiry)}
+                                title="Export PDF"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 onClick={() => setFollowupEnquiryId(enquiry.id)}
+                                title="Add Follow-up"
                               >
                                 <Phone className="h-4 w-4" />
                               </Button>
@@ -278,6 +391,7 @@ export default function AdmissionEnquiry() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setEditingEnquiry(enquiry)}
+                                title="Edit"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -286,6 +400,7 @@ export default function AdmissionEnquiry() {
                                   size="sm"
                                   variant="destructive"
                                   onClick={() => setDeleteEnquiryId(enquiry.id)}
+                                  title="Delete"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -295,7 +410,7 @@ export default function AdmissionEnquiry() {
                         </TableRow>
                         <CollapsibleContent asChild>
                           <TableRow>
-                            <TableCell colSpan={9} className="bg-muted/50">
+                            <TableCell colSpan={8} className="bg-muted/50">
                               <div className="p-4 space-y-3">
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                   <div>
