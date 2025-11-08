@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { AddAdmissionEnquiryDialog } from "@/components/AddAdmissionEnquiryDialog";
 import { EditAdmissionEnquiryDialog } from "@/components/EditAdmissionEnquiryDialog";
 import { AddFollowupDialog } from "@/components/AddFollowupDialog";
 import { toast } from "sonner";
-import { Pencil, Trash2, Phone, Search, AlertCircle } from "lucide-react";
+import { Pencil, Trash2, Phone, Search, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -35,6 +37,9 @@ export default function AdmissionEnquiry() {
   const [editingEnquiry, setEditingEnquiry] = useState<any>(null);
   const [followupEnquiryId, setFollowupEnquiryId] = useState<string | null>(null);
   const [deleteEnquiryId, setDeleteEnquiryId] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const { allowAdmissionDeletion } = useControl().settings;
 
   const fetchEnquiries = async () => {
@@ -97,7 +102,26 @@ export default function AdmissionEnquiry() {
     }
 
     setFilteredEnquiries(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [searchTerm, statusFilter, enquiries]);
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredEnquiries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedEnquiries = filteredEnquiries.slice(startIndex, endIndex);
 
   const handleDelete = async () => {
     if (!deleteEnquiryId) return;
@@ -181,8 +205,9 @@ export default function AdmissionEnquiry() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12"></TableHead>
                 <TableHead>Child Name</TableHead>
-                <TableHead>Parents Name</TableHead>
+                <TableHead>Parent Name & Address</TableHead>
                 <TableHead>Mobile</TableHead>
                 <TableHead>Enquiry Date</TableHead>
                 <TableHead>Last Follow-up</TableHead>
@@ -194,61 +219,162 @@ export default function AdmissionEnquiry() {
             <TableBody>
               {filteredEnquiries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     No enquiries found
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredEnquiries.map((enquiry: any) => (
-                  <TableRow key={enquiry.id}>
-                    <TableCell className="font-medium">{enquiry.child_name}</TableCell>
-                    <TableCell>{enquiry.parents_name}</TableCell>
-                    <TableCell>{enquiry.mobile_no}</TableCell>
-                    <TableCell>
-                      {enquiry.enquiry_date ? format(new Date(enquiry.enquiry_date), "dd/MM/yyyy") : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {enquiry.last_followup?.followup_date 
-                        ? format(new Date(enquiry.last_followup.followup_date), "dd/MM/yyyy")
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {enquiry.last_followup?.remark || "-"}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setFollowupEnquiryId(enquiry.id)}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingEnquiry(enquiry)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {allowAdmissionDeletion && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setDeleteEnquiryId(enquiry.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                paginatedEnquiries.map((enquiry: any) => {
+                  const isExpanded = expandedRows.has(enquiry.id);
+                  return (
+                    <Collapsible key={enquiry.id} asChild open={isExpanded} onOpenChange={() => toggleRow(enquiry.id)}>
+                      <>
+                        <TableRow>
+                          <TableCell>
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+                          </TableCell>
+                          <TableCell className="font-medium">{enquiry.child_name}</TableCell>
+                          <TableCell>
+                            <div className="space-y-0.5">
+                              <div className="font-medium">{enquiry.parents_name}</div>
+                              {enquiry.address && (
+                                <div className="text-sm text-muted-foreground truncate max-w-xs">
+                                  {enquiry.address}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{enquiry.mobile_no}</TableCell>
+                          <TableCell>
+                            {enquiry.enquiry_date ? format(new Date(enquiry.enquiry_date), "dd/MM/yyyy") : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {enquiry.last_followup?.followup_date 
+                              ? format(new Date(enquiry.last_followup.followup_date), "dd/MM/yyyy")
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {enquiry.last_followup?.remark || "-"}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setFollowupEnquiryId(enquiry.id)}
+                              >
+                                <Phone className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingEnquiry(enquiry)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              {allowAdmissionDeletion && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => setDeleteEnquiryId(enquiry.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        <CollapsibleContent asChild>
+                          <TableRow>
+                            <TableCell colSpan={9} className="bg-muted/50">
+                              <div className="p-4 space-y-3">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Gender:</span>
+                                    <p className="text-sm">{enquiry.gender || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Date of Birth:</span>
+                                    <p className="text-sm">{enquiry.date_of_birth ? format(new Date(enquiry.date_of_birth), "dd/MM/yyyy") : "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Age:</span>
+                                    <p className="text-sm">{enquiry.age || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Nearby Road:</span>
+                                    <p className="text-sm">{enquiry.nearby_road_name || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Religion:</span>
+                                    <p className="text-sm">{enquiry.religion || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Nationality:</span>
+                                    <p className="text-sm">{enquiry.nationality || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Course Name:</span>
+                                    <p className="text-sm">{enquiry.course_name || "-"}</p>
+                                  </div>
+                                  <div>
+                                    <span className="text-sm font-medium text-muted-foreground">Referred By:</span>
+                                    <p className="text-sm">{enquiry.referred_by || "-"}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="mt-4 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </Card>
 
       {editingEnquiry && (
@@ -265,7 +391,10 @@ export default function AdmissionEnquiry() {
           enquiryId={followupEnquiryId}
           open={!!followupEnquiryId}
           onOpenChange={(open) => !open && setFollowupEnquiryId(null)}
-          onSuccess={() => toast.success("Followup recorded")}
+          onSuccess={() => {
+            fetchEnquiries();
+            toast.success("Followup recorded");
+          }}
         />
       )}
 
