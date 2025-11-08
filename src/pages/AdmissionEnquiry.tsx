@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useControl } from "@/contexts/ControlContext";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { AddAdmissionEnquiryDialog } from "@/components/AddAdmissionEnquiryDialo
 import { EditAdmissionEnquiryDialog } from "@/components/EditAdmissionEnquiryDialog";
 import { AddFollowupDialog } from "@/components/AddFollowupDialog";
 import { toast } from "sonner";
-import { Pencil, Trash2, Phone, Search, AlertCircle, ChevronDown, ChevronRight, Download } from "lucide-react";
+import { Pencil, Trash2, Phone, Search, AlertCircle, ChevronDown, ChevronRight, Download, ArrowLeft } from "lucide-react";
 import jsPDF from "jspdf";
 import { PDFDownloader } from "@/lib/pdf-download";
 import { format } from "date-fns";
@@ -31,6 +32,7 @@ import {
 
 export default function AdmissionEnquiry() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [enquiries, setEnquiries] = useState<any[]>([]);
   const [filteredEnquiries, setFilteredEnquiries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -264,7 +266,17 @@ export default function AdmissionEnquiry() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Admission Enquiries</h1>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <h1 className="text-3xl font-bold">Admission Enquiries</h1>
+        </div>
         <AddAdmissionEnquiryDialog onSuccess={fetchEnquiries} />
       </div>
 
