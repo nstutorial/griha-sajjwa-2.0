@@ -22,7 +22,7 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
     followup_type: "phone",
     remark: "",
     next_followup_date: "",
-    status: ""
+    status: "unchanged"
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +40,7 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
       if (followupError) throw followupError;
 
       // Update enquiry status if provided
-      if (formData.status) {
+      if (formData.status && formData.status !== "unchanged") {
         const { error: statusError } = await supabase
           .from("admission_enquiry")
           .update({ status: formData.status })
@@ -56,7 +56,7 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
         followup_type: "phone",
         remark: "",
         next_followup_date: "",
-        status: ""
+        status: "unchanged"
       });
       onSuccess();
     } catch (error: any) {
@@ -119,7 +119,7 @@ export function AddFollowupDialog({ enquiryId, open, onOpenChange, onSuccess }: 
                 <SelectValue placeholder="Keep current status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Keep current status</SelectItem>
+                <SelectItem value="unchanged">Keep current status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="admitted">Admitted</SelectItem>
                 <SelectItem value="not_admitted">Not Admitted</SelectItem>
